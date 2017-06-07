@@ -50,21 +50,45 @@ SELECT a.company, a.num
 -- 8. Give a list of the services which connect the stops 'Craiglockhart' and 'Tollcross' 
 SELECT a.company, a.num
   FROM route a JOIN route b ON (a.company = b.company AND a.num = b.num)
-    JOIN stops stopa ON a.stop = stopa.id
-    JOIN stops stopb ON b.stop = stopb.id
-  WHERE stopa.name = 'Craiglockhart'
-  AND stopb.name = 'Tollcross'
+    JOIN stops empezar ON (a.stop = empezar.id)
+    JOIN stops fin ON (b.stop = fin.id)
+  WHERE empezar.name = 'Craiglockhart' AND fin.name = 'Tollcross'
 
 
 -- 9. Give a distinct list of the stops which may be reached from 'Craiglockhart' 
 --    by taking one bus, including 'Craiglockhart' itself, offered by the LRT 
 --    company. Include the company and bus no. of the relevant services. 
-SELECT DISTINCT name, a.company, a.num
-FROM route a
-JOIN route b ON (a.company = b.company AND a.num = b.num)
-JOIN stops ON a.stop = stops.id
-WHERE b.stop = 53
+SELECT name, a.company, a.num
+  FROM route a JOIN route b ON (a.company = b.company AND a.num = b.num)
+    JOIN stops ON (stops.id = a.stop)
+  WHERE b.stop = (SELECT id FROM stops WHERE name = 'Craiglockhart')
 
 -- 10. Find the routes involving two buses that can go from Craiglockhart to Sighthill.
 --     Show the bus no. and company for the first bus, the name of the stop for the transfer,
 --     and the bus no. and company for the second bus. 
+
+-- 10a. Find busses from Craiglockhart
+SELECT salir.company, salir.num, transferir.stop, transloc.name
+  FROM route salir JOIN route transferir ON (salir.company = transferir.company AND salir.num = transferir.num)
+    JOIN stops transloc ON (transferir.stop = transloc.id)
+  WHERE salir.stop = (SELECT id FROM stops WHERE name = 'Craiglockhart')
+
+
+-- 10b. Find busses arriving at Sighthill
+SELECT destination.num, destination.company, destination.stop
+  FROM route transfert JOIN route destination ON (transfert.company = destination.company AND transfert.num = destination.num)
+  WHERE destination.stop = (SELECT id FROM stops WHERE name = 'Sighthill')
+
+
+-- 10.c Find where busses from Craiglockhart match busses to Sighthill
+SELECT DISTINCT salir.num, salir.company, salir.name, destination.num, destination.company
+  FROM 
+    (SELECT salir.company, salir.num, transferir.stop, transloc.name
+      FROM route salir JOIN route transferir ON (salir.company = transferir.company AND salir.num = transferir.num)
+        JOIN stops transloc ON (transferir.stop = transloc.id)
+      WHERE salir.stop = (SELECT id FROM stops WHERE name = 'Craiglockhart')) as salir
+  JOIN
+    (SELECT destination.num, destination.company, transfert.stop
+      FROM route transfert JOIN route destination ON (transfert.company = destination.company AND transfert.num = destination.num)
+      WHERE destination.stop = (SELECT id FROM stops WHERE name = 'Sighthill')) as destination
+  ON (salir.stop = destination.stop)
